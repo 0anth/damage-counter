@@ -18,6 +18,9 @@ Useful when bossing with other players.
 
 ## Changelog
 
+###### V1.7 - 11/10/2021
+- Added toggleable options to reset the counter on teleport or player death
+
 ###### v1.6 - 17-Jan-2021
 - Added side panel (to be expanded upon soon)
 
