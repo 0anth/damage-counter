@@ -90,6 +90,8 @@ public class DamageCounterPanel extends PluginPanel
 
 	private static final String changelogText = "<html><body style = 'color:#a5a5a5'>" +
 		"<span style = 'color:white'>Changelog</span><br><br>" +
+		"<span style = 'color:white'>v1.7 -- 10-Nov-2021</span><br>" +
+		"- Added options to reset on teleport or player death<br><br>" +
 		"<span style = 'color:white'>v1.6 -- 17-Jan-2021</span><br>" +
 		"- Added side panel (to be expanded upon soon)<br><br>" +
 		"<span style = 'color:white'>v1.5 -- 09-Dec-2020</span><br>" +
