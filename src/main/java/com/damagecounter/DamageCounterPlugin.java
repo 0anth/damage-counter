@@ -44,16 +44,13 @@ import net.runelite.api.Hitsplat;
 import net.runelite.api.NPC;
 import static net.runelite.api.NpcID.*;
 import net.runelite.api.Player;
-import net.runelite.api.events.HitsplatApplied;
-import net.runelite.api.events.NpcDespawned;
+import net.runelite.api.events.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.events.OverlayMenuClicked;
 import net.runelite.client.events.PartyChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.info.InfoPanel;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -65,6 +62,7 @@ import net.runelite.client.ws.PartyMember;
 import net.runelite.client.ws.PartyService;
 import net.runelite.client.ws.WSClient;
 import net.runelite.api.ChatMessageType;
+import net.runelite.api.coords.WorldPoint;
 
 @PluginDescriptor(
 	name = "Damage Counter",
@@ -138,6 +136,8 @@ public class DamageCounterPlugin extends Plugin
 		AHRIM_THE_BLIGHTED, DHAROK_THE_WRETCHED, GUTHAN_THE_INFESTED, KARIL_THE_TAINTED, TORAG_THE_CORRUPTED, VERAC_THE_DEFILED
 	);
 	private String npcName = null;
+	private WorldPoint lastWorldPoint = null;
+	private boolean skipNextTeleportReset = false;
 	NPC barrows = null;
 	int boss = 0;
 
@@ -345,7 +345,49 @@ public class DamageCounterPlugin extends Plugin
 		}
 	}
 
-	private void reset()
+	@Subscribe
+	public void onGameTick(GameTick event) {
+		Player player = client.getLocalPlayer();
+		if (player == null) {
+			return;
+		}
+		WorldPoint newWorldPoint = player.getWorldLocation();
+		if (lastWorldPoint == null) {
+			lastWorldPoint = newWorldPoint;
+			return;
+		}
+		int distance = newWorldPoint.distanceTo(lastWorldPoint);
+		if (!DamageMember.overlayHide && distance > 2 && damageCounterConfig.resetOnTeleport()) {
+			if(!skipNextTeleportReset){
+				reset(KillStatus.UNSUCCESSFUL);
+			}else{
+				skipNextTeleportReset = false;
+			}
+		}
+		lastWorldPoint = newWorldPoint;
+	}
+
+
+	@Subscribe
+	public void onActorDeath(ActorDeath actorDeath)
+	{
+		skipNextTeleportReset = true;
+		Actor actor = actorDeath.getActor();
+		if (actor instanceof Player)
+		{
+			Player player = (Player) actor;
+			if ( !DamageMember.overlayHide && player == client.getLocalPlayer() && damageCounterConfig.resetOnPlayerDeath())
+			{
+				reset(KillStatus.UNSUCCESSFUL);
+			}
+		}
+	}
+
+	private void reset(){
+		reset(KillStatus.SUCCESSFUL);
+	}
+
+	private void reset(KillStatus killStatus)
 	{
 		Player player = client.getLocalPlayer();
 		PartyMember localMember = partyService.getLocalMember();
@@ -376,8 +418,9 @@ public class DamageCounterPlugin extends Plugin
 				double damageTotal = total.getDamage();
 				double damagePercent = damageDone / damageTotal;
 				DecimalFormat df = new DecimalFormat("##%");
-				if (damagePercent < 1)
-				{
+				if(killStatus.equals(KillStatus.UNSUCCESSFUL)){
+					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " damage in " + killTime, null);
+				} else if (damagePercent < 1) {
 					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " (" + df.format(damagePercent) + ") damage to " + npcName + " in " + killTime, null);
 				} else {
 					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " damage to " + npcName + " in " + killTime, null);
@@ -390,4 +433,6 @@ public class DamageCounterPlugin extends Plugin
 		npcName = null;
 		total.reset();
 	}
+
+	private enum KillStatus {SUCCESSFUL, UNSUCCESSFUL}
 }
