@@ -346,21 +346,27 @@ public class DamageCounterPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onGameTick(GameTick event) {
+	public void onGameTick(GameTick event)
+    {
 		Player player = client.getLocalPlayer();
-		if (player == null) {
+		if (player == null)
+		{
 			return;
 		}
 		WorldPoint newWorldPoint = player.getWorldLocation();
-		if (lastWorldPoint == null) {
+		if (lastWorldPoint == null)
+		{
 			lastWorldPoint = newWorldPoint;
 			return;
 		}
 		int distance = newWorldPoint.distanceTo(lastWorldPoint);
-		if (!DamageMember.overlayHide && distance > 2 && damageCounterConfig.resetOnTeleport()) {
-			if(!skipNextTeleportReset){
+		if (!DamageMember.overlayHide && distance > 2 && damageCounterConfig.resetOnTeleport())
+		{
+			if(!skipNextTeleportReset)
+			{
 				reset();
-			}else{
+			}else
+			{
 				skipNextTeleportReset = false;
 			}
 		}
