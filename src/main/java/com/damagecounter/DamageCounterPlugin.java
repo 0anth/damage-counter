@@ -359,7 +359,7 @@ public class DamageCounterPlugin extends Plugin
 		int distance = newWorldPoint.distanceTo(lastWorldPoint);
 		if (!DamageMember.overlayHide && distance > 2 && damageCounterConfig.resetOnTeleport()) {
 			if(!skipNextTeleportReset){
-				reset(KillStatus.UNSUCCESSFUL);
+				reset();
 			}else{
 				skipNextTeleportReset = false;
 			}
@@ -378,16 +378,12 @@ public class DamageCounterPlugin extends Plugin
 			Player player = (Player) actor;
 			if ( !DamageMember.overlayHide && player == client.getLocalPlayer() && damageCounterConfig.resetOnPlayerDeath())
 			{
-				reset(KillStatus.UNSUCCESSFUL);
+				reset();
 			}
 		}
 	}
 
-	private void reset(){
-		reset(KillStatus.SUCCESSFUL);
-	}
-
-	private void reset(KillStatus killStatus)
+	private void reset()
 	{
 		Player player = client.getLocalPlayer();
 		PartyMember localMember = partyService.getLocalMember();
@@ -412,15 +408,13 @@ public class DamageCounterPlugin extends Plugin
 
 		for (DamageMember damageMember : members.values())
 		{
-			if (name.equals(damageMember.getName()) && sendToChat)
+			if (name.equals(damageMember.getName()) && sendToChat  && npcName != null)
 			{
 				double damageDone = damageMember.getDamage();
 				double damageTotal = total.getDamage();
 				double damagePercent = damageDone / damageTotal;
 				DecimalFormat df = new DecimalFormat("##%");
-				if(killStatus.equals(KillStatus.UNSUCCESSFUL)){
-					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " damage in " + killTime, null);
-				} else if (damagePercent < 1) {
+				if (damagePercent < 1) {
 					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " (" + df.format(damagePercent) + ") damage to " + npcName + " in " + killTime, null);
 				} else {
 					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " damage to " + npcName + " in " + killTime, null);
@@ -433,6 +427,4 @@ public class DamageCounterPlugin extends Plugin
 		npcName = null;
 		total.reset();
 	}
-
-	private enum KillStatus {SUCCESSFUL, UNSUCCESSFUL}
 }
