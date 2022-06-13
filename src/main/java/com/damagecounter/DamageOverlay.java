@@ -42,7 +42,7 @@ import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.QuantityFormatter;
-import net.runelite.client.ws.PartyService;
+import net.runelite.client.party.PartyService;
 
 class DamageOverlay extends OverlayPanel
 {
