@@ -27,45 +27,32 @@ package com.damagecounter;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Provides;
-import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.inject.Inject;
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Actor;
-import net.runelite.api.Client;
-import net.runelite.api.Hitsplat;
-import net.runelite.api.NPC;
-import static net.runelite.api.NpcID.*;
-import net.runelite.api.Player;
+import net.runelite.api.*;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.events.OverlayMenuClicked;
 import net.runelite.client.events.PartyChanged;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.info.InfoPanel;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
-import net.runelite.client.util.Text;
 import net.runelite.client.util.WildcardMatcher;
 
-import net.runelite.api.ChatMessageType;
+import javax.inject.Inject;
+import java.awt.image.BufferedImage;
+import java.text.DecimalFormat;
+import java.time.Duration;
+
+import static net.runelite.api.NpcID.*;
 
 @PluginDescriptor(
 	name = "Damage Counter",
@@ -138,9 +125,6 @@ public class DamageCounterPlugin extends Plugin
 	private static final ImmutableSet<Integer> BARROWS = ImmutableSet.of(
 		AHRIM_THE_BLIGHTED, DHAROK_THE_WRETCHED, GUTHAN_THE_INFESTED, KARIL_THE_TAINTED, TORAG_THE_CORRUPTED, VERAC_THE_DEFILED
 	);
-	private String npcName = null;
-	NPC barrows = null;
-	int boss = 0;
 
 	@Inject
 	private Client client;
@@ -155,6 +139,9 @@ public class DamageCounterPlugin extends Plugin
 	private WSClient wsClient;
 
 	@Inject
+	private DamageCounterState state;
+
+	@Inject
 	private DamageOverlay damageOverlay;
 
 	@Inject
@@ -164,12 +151,6 @@ public class DamageCounterPlugin extends Plugin
 	private ClientToolbar clientToolbar;
 
 	private NavigationButton navButton;
-	private List<String> additionalNpcs;
-
-	@Getter(AccessLevel.PACKAGE)
-	private final Map<String, DamageMember> members = new ConcurrentHashMap<>();
-	@Getter(AccessLevel.PACKAGE)
-	private final DamageMember total = new DamageMember("Total");
 
 	@Provides
 	DamageCounterConfig provideConfig(ConfigManager configManager)
@@ -180,15 +161,15 @@ public class DamageCounterPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		total.reset();
+		state.reset(0);
+        state.addAdditionalNpcsFromString(damageCounterConfig.additionalNpcs());
 		overlayManager.add(damageOverlay);
 		wsClient.registerMessage(DamageUpdate.class);
-		additionalNpcs = Collections.emptyList();
 
 		final DamageCounterPanel panel = injector.getInstance(DamageCounterPanel.class);
 		panel.init();
 
-		final BufferedImage icon = ImageUtil.getResourceStreamFromClass(getClass(), "damagecounter_icon.png");
+		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "damagecounter_icon.png");
 
 		navButton = NavigationButton.builder()
 			.tooltip("Damage Counter")
@@ -205,24 +186,23 @@ public class DamageCounterPlugin extends Plugin
 	{
 		wsClient.unregisterMessage(DamageUpdate.class);
 		overlayManager.remove(damageOverlay);
-		members.clear();
+		state.getMembers().clear();
 		clientToolbar.removeNavigation(navButton);
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChanged)
 	{
-		if (configChanged.getGroup().equals("damagecounter"))
+		if (configChanged.getGroup().equals("damagecounter") && configChanged.getKey().equals("additionalNpcs"))
 		{
-			String s = damageCounterConfig.additionalNpcs();
-			additionalNpcs = s != null ? Text.fromCSV(s) : Collections.emptyList();
+            state.addAdditionalNpcsFromString(damageCounterConfig.additionalNpcs());
 		}
 	}
 
 	@Subscribe
 	public void onPartyChanged(PartyChanged partyChanged)
 	{
-		members.clear();
+		state.getMembers().clear();
 	}
 
 	@Subscribe
@@ -242,16 +222,13 @@ public class DamageCounterPlugin extends Plugin
 		boolean isAdditionalNpc = false;
 
 		// Check for user inputted NPC
-		if (!additionalNpcs.isEmpty())
-		{
-			for (String npcName : additionalNpcs)
-			{
-				if (WildcardMatcher.matches(npcName, actor.getName()))
-				{
-					isAdditionalNpc = true;
-				}
-			}
-		}
+        for (String npcName : state.getAdditionalNpcs())
+        {
+            if (actor.getName() != null && WildcardMatcher.matches(npcName, actor.getName()))
+            {
+                isAdditionalNpc = true;
+            }
+        }
 
 		if (!isBoss && !isBarrows && !isAdditionalNpc)
 		{
@@ -266,23 +243,23 @@ public class DamageCounterPlugin extends Plugin
 			PartyMember localMember = partyService.getLocalMember();
 			// If not in a party, user local player name
 			final String name = localMember == null ? player.getName() : localMember.getDisplayName();
-			DamageMember damageMember = members.computeIfAbsent(name, DamageMember::new);
+			DamageMember damageMember = state.getMembers().computeIfAbsent(name, DamageMember::new);
 			damageMember.addDamage(hit);
 
-			if (boss == 0)
+			if (state.getBoss() == 0)
 			{
-				boss = npcId;
-				npcName = actor.getName();
+				state.setBoss(npcId);
+				state.setNpcName(actor.getName());
 			}
-			else if (boss != npcId)
+			else if (state.getBoss() != npcId)
 			{
-				reset();
+				reset(0);
 			}
 
 			if (isBarrows)
 			{
 				// get the NPC and store it if we are attacking a barrows brother
-				barrows = client.getHintArrowNpc();
+				state.setBarrowsNpc(client.getHintArrowNpc());
 			}
 
 			// broadcast damage
@@ -293,18 +270,8 @@ public class DamageCounterPlugin extends Plugin
 				partyService.send(specialCounterUpdate);
 			}
 			// apply to total
+			state.getTotal().addDamage(hit);
 		}
-		else if (hitsplat.isOthers() && boss == npcId)
-		{
-			if (isBarrows)
-			{
-				// only track barrows brothers we are attacking
-				return;
-			}
-			// apply to total
-		}
-
-		total.addDamage(hitsplat.getAmount());
 	}
 
 	@Subscribe
@@ -321,8 +288,9 @@ public class DamageCounterPlugin extends Plugin
 			return;
 		}
 
-		DamageMember damageMember = members.computeIfAbsent(name, DamageMember::new);
+		DamageMember damageMember = state.getMembers().computeIfAbsent(name, DamageMember::new);
 		damageMember.addDamage(damageUpdate.getHit());
+		state.getTotal().addDamage(damageUpdate.getHit());
 	}
 
 	@Subscribe
@@ -330,35 +298,40 @@ public class DamageCounterPlugin extends Plugin
 	{
 		NPC npc = npcDespawned.getNpc();
 
-		if (npc.isDead() && npc.getId() == boss)
+		if (npc.isDead() && npc.getId() == state.getBoss())
 		{
-			if (barrows != null)
+			if (state.getBarrowsNpc() != null)
 			{
 				// Only track our own barrows brother
-				if (npc != barrows)
+				if (npc != state.getBarrowsNpc())
 				{
 					return;
 				}
 			}
 
-			npcName = npc.getName();
+			state.setNpcName(npc.getName());
 			reset();
 		}
 	}
 
 	private void reset()
+    {
+		reset(damageCounterConfig.resetDelay());
+	}
+
+	private void reset(int delay)
 	{
+        state.setEndTime();
 		Player player = client.getLocalPlayer();
 		PartyMember localMember = partyService.getLocalMember();
 		// If not in a party, user local player name
 		final String name = localMember == null ? player.getName() : localMember.getDisplayName();
 		boolean sendToChat = damageCounterConfig.sendToChat();
-		barrows = null;
-		boss = 0;
 
-		DamageMember total = getTotal();
+		DamageMember total = state.getTotal();
 		Duration elapsed = total.elapsed();
 		long s = elapsed.getSeconds();
+
 		String killTime;
 		if (s >= 3600)
 		{
@@ -369,9 +342,10 @@ public class DamageCounterPlugin extends Plugin
 			killTime = String.format("%dm %02ds", s / 60, (s % 60));
 		}
 
-		for (DamageMember damageMember : members.values())
+        String npcName = state.getNpcName();
+		for (DamageMember damageMember : state.getMembers().values())
 		{
-			if (name.equals(damageMember.getName()) && sendToChat)
+			if (name != null && name.equals(damageMember.getName()) && sendToChat)
 			{
 				double damageDone = damageMember.getDamage();
 				double damageTotal = total.getDamage();
@@ -384,11 +358,8 @@ public class DamageCounterPlugin extends Plugin
 					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "You dealt " + QuantityFormatter.formatNumber(damageMember.getDamage()) + " damage to " + npcName + " in " + killTime, null);
 				}
 			}
-
-			damageMember.reset();
 		}
 
-		npcName = null;
-		total.reset();
+        state.reset(delay);
 	}
 }
