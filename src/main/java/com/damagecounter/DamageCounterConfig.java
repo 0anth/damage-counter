@@ -3,6 +3,7 @@ package com.damagecounter;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.Range;
 
 @ConfigGroup("damagecounter")
 public interface DamageCounterConfig extends Config
@@ -53,4 +54,14 @@ public interface DamageCounterConfig extends Config
 		description = "Also track these NPCs, comma separated"
 	)
 	String additionalNpcs();
+
+	@Range(
+		max = 60
+	)
+	@ConfigItem(
+			keyName = "resetDelay",
+			name = "Damage reset delay",
+			description = "How many seconds to wait until damage is reset after kill. 0 for instant reset"
+	)
+	default int resetDelay() { return 0; }
 }

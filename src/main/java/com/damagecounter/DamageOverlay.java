@@ -25,41 +25,37 @@
  */
 package com.damagecounter;
 
-import java.awt.Dimension;
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
-import java.text.DecimalFormat;
-import java.time.Duration;
-import java.util.Map;
-import javax.inject.Inject;
 import net.runelite.api.Client;
-import static net.runelite.api.MenuAction.RUNELITE_OVERLAY;
 import net.runelite.api.Player;
 import net.runelite.client.party.PartyService;
-import net.runelite.client.ui.overlay.OverlayMenuEntry;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.components.ComponentConstants;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
-import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.QuantityFormatter;
+
+import javax.inject.Inject;
+import java.awt.*;
+import java.text.DecimalFormat;
+import java.time.Duration;
+import java.util.Map;
 
 class DamageOverlay extends OverlayPanel
 {
 	private static final DecimalFormat DPS_FORMAT = new DecimalFormat("#0.0");
 	private static final int PANEL_WIDTH_OFFSET = 0; // switched to 0 from 10 to match the other overlays
 
-	private final DamageCounterPlugin damageCounterPlugin;
 	private final DamageCounterConfig damageCounterConfig;
+    private final DamageCounterState state;
 	private final PartyService partyService;
 	private final Client client;
 
 	@Inject
-	DamageOverlay(DamageCounterPlugin damageCounterPlugin, DamageCounterConfig damageCounterConfig, PartyService partyService, Client client)
+	DamageOverlay(DamageCounterPlugin damageCounterPlugin, DamageCounterConfig damageCounterConfig, DamageCounterState state, PartyService partyService, Client client)
 	{
 		super(damageCounterPlugin);
-		this.damageCounterPlugin = damageCounterPlugin;
 		this.damageCounterConfig = damageCounterConfig;
+        this.state = state;
 		this.partyService = partyService;
 		this.client = client;
 	}
@@ -72,7 +68,7 @@ class DamageOverlay extends OverlayPanel
 			return null;
 		}
 
-		Map<String, DamageMember> dpsMembers = damageCounterPlugin.getMembers();
+		Map<String, DamageMember> dpsMembers = state.getMembers();
 		if (dpsMembers.isEmpty() || (damageCounterConfig.overlayAutoHide() && DamageMember.overlayHide))
 		{
 			return null;
@@ -80,7 +76,7 @@ class DamageOverlay extends OverlayPanel
 
 		boolean inParty = !partyService.getMembers().isEmpty();
 		boolean showDamage = damageCounterConfig.showDamage();
-		DamageMember total = damageCounterPlugin.getTotal();
+		DamageMember total = state.getTotal();
 
 		final String title = "Damage Counter";
 		panelComponent.getChildren().add(
@@ -111,11 +107,6 @@ class DamageOverlay extends OverlayPanel
 			if (player.getName() != null)
 			{
 				DamageMember self = dpsMembers.get(player.getName());
-				double damageDone = self.getDamage();
-				double damageTotal = total.getDamage();
-				double damagePercent = damageDone / damageTotal;
-				DecimalFormat df = new DecimalFormat("##%");
-
 				if (self != null && total.getDamage() > self.getDamage())
 				{
 					panelComponent.getChildren().add(
