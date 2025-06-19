@@ -117,6 +117,7 @@ public class DamageCounterPlugin extends Plugin
 		VENENATIS, VENENATIS_6610,
 		VETION, VETION_6612,
 		VORKATH, VORKATH_8058, VORKATH_8059, VORKATH_8060, VORKATH_8061,
+		YAMA, JUDGE_OF_YAMA_14180,
 		ZALCANO, ZALCANO_9050,
 		ZULRAH, ZULRAH_2043, ZULRAH_2044,
 
@@ -202,7 +203,7 @@ public class DamageCounterPlugin extends Plugin
 		total.reset();
 		overlayManager.add(damageOverlay);
 		wsClient.registerMessage(DamageUpdate.class);
-		additionalNpcs = Collections.emptyList();
+		loadAdditionalNpcs();
 
 		final DamageCounterPanel panel = injector.getInstance(DamageCounterPanel.class);
 		panel.init();
@@ -233,9 +234,14 @@ public class DamageCounterPlugin extends Plugin
 	{
 		if (configChanged.getGroup().equals("damagecounter"))
 		{
-			String s = damageCounterConfig.additionalNpcs();
-			additionalNpcs = s != null ? Text.fromCSV(s) : Collections.emptyList();
+			loadAdditionalNpcs();
 		}
+	}
+
+	private void loadAdditionalNpcs()
+	{
+		String s = damageCounterConfig.additionalNpcs();
+		additionalNpcs = s != null ? Text.fromCSV(s) : Collections.emptyList();
 	}
 
 	@Subscribe
