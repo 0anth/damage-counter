@@ -51,7 +51,6 @@ import net.runelite.api.Client;
 import net.runelite.client.events.SessionClose;
 import net.runelite.client.events.SessionOpen;
 import net.runelite.client.RuneLiteProperties;
-import net.runelite.client.account.SessionManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
@@ -78,9 +77,6 @@ public class DamageCounterPanel extends PluginPanel
 
 	@Inject
 	private EventBus eventBus;
-
-	@Inject
-	private SessionManager sessionManager;
 
 	@Inject
 	private ScheduledExecutorService executor;
