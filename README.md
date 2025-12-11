@@ -22,6 +22,10 @@ If you only want to know how much damage you did and how long the kill took, the
 
 ## Changelog
 
+###### v1.8.2 - 11-Dec-2025
+- Add Yama
+- Fix custom NPCs not being tracked on startup
+
 ###### v1.8.1 - 14-Oct-2025
 - Compatibility update for RuneLite API changes
 
