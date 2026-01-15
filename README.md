@@ -1,4 +1,4 @@
-# Damage Counter [![Plugin Installs](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/installs/plugin/damage-counter)](https://runelite.net/plugin-hub/0anth) [![Plugin Rank](http://img.shields.io/endpoint?url=https://i.pluginhub.info/shields/rank/plugin/damage-counter)](https://runelite.net/plugin-hub)
+# Damage Counter [![Plugin Installs](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/damage-counter)](https://runelite.net/plugin-hub/0anth) [![Plugin Rank](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/rank/plugin/damage-counter)](https://runelite.net/plugin-hub)
 This plugin will display the damage you did to a boss and how long it took to kill.
 
 When in combat with a boss, an overlay is displayed, detailing how much damage you have dealt and what percentage of the boss' total health that is.
